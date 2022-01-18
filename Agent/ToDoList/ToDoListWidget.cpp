@@ -8,8 +8,8 @@ const QString DEFAULT_XML_FILE_PATH = "demo.xml";
 ToDoListWidget::ToDoListWidget(QWidget *parent)
     : QWidget(parent)
     , mUi(new Ui::ToDoListWidget)
+    , mItemContents()
     , mToDoItems()
-    , mFinishedItems()
 {
     mUi->setupUi(this);
 
@@ -24,7 +24,13 @@ ToDoListWidget::ToDoListWidget(QWidget *parent)
             return;
         }
 
-        AddToDoItem(mUi->leTitle->text(), mUi->cmbType->currentText(), mUi->dteExpectDate->text());
+        struct ItemContent newItemContent(mUi->leTitle->text(),
+                                          mUi->cmbType->currentText(),
+                                          mUi->dteExpectDate->text(),
+                                          "",
+                                          "",
+                                          "open");
+        AddToDoItem(newItemContent);
         QMessageBox::about(this, "Insert", "Inserted an item");
     });
 
@@ -36,9 +42,9 @@ ToDoListWidget::ToDoListWidget(QWidget *parent)
 
     // Page2
     mUi->vlToDoList->setDirection(QVBoxLayout::BottomToTop);
-    mDomParser.ReadFile(DEFAULT_XML_FILE_PATH);
-    for (auto i : mDomParser.GetAllItems()) {
-        AddToDoItem(i.title, i.type, i.expectDate);
+    mDomParser.ReadFile(DEFAULT_XML_FILE_PATH, mItemContents);
+    for (auto i : mItemContents) {
+        AddToDoItem(i);
     }
 
     // Page3
@@ -47,22 +53,27 @@ ToDoListWidget::ToDoListWidget(QWidget *parent)
 
 ToDoListWidget::~ToDoListWidget()
 {
-    mDomParser.DeleteAllItems();
+    mItemContents.clear();
     for (auto i : mToDoItems) {
-        struct ItemContent newItem(i->GetTitle(), i->GetType(), i->GetExpectDate());
-        mDomParser.InsertNewItem(newItem);
+        mItemContents.append(i->GetItemContent());
     }
-    mDomParser.WriteFile(DEFAULT_XML_FILE_PATH);
+    mDomParser.WriteFile(DEFAULT_XML_FILE_PATH, mItemContents);
 
-    if (mUi)
+    if (mUi) {
         delete mUi;
+        mUi = NULL;
+    }
 }
 
-ToDoItem *ToDoListWidget::AddToDoItem(QString title, QString type, QString date)
+ToDoItem *ToDoListWidget::AddToDoItem(const struct ItemContent &itemContent)
 {
-    ToDoItem *item = new ToDoItem(this, title, type, date);
+    ToDoItem *item = new ToDoItem(this, itemContent);
     mToDoItems.append(item);
-    mUi->vlToDoList->addWidget(item);
+
+    if (itemContent.currentStatus == "resolve")
+        mUi->vlDone->addWidget(item);
+    else
+        mUi->vlToDoList->addWidget(item);
 
     connect(item, &ToDoItem::SigCheckboxToggle, this, &ToDoListWidget::SlotCheckboxToggle);
     connect(item, &ToDoItem::SigDeleteItem, this, &ToDoListWidget::SlotDeleteItem);
@@ -73,15 +84,13 @@ ToDoItem *ToDoListWidget::AddToDoItem(QString title, QString type, QString date)
 void ToDoListWidget::CheckItemDone(ToDoItem *item, bool isDone)
 {
     if (isDone) {
-        mToDoItems.removeOne(item);
-        mFinishedItems.append(item);
         mUi->vlDone->addWidget(item);
         mUi->vlToDoList->removeWidget(item);
+        item->ChangeStatus(ToDoItem::Resolve);
     } else {
-        mFinishedItems.removeOne(item);
-        mToDoItems.append(item);
         mUi->vlDone->removeWidget(item);
         mUi->vlToDoList->addWidget(item);
+        item->ChangeStatus(ToDoItem::Reopen);
     }
 }
 
@@ -97,7 +106,6 @@ void ToDoListWidget::SlotDeleteItem(void)
     mUi->vlToDoList->removeWidget(item);
     mUi->vlDone->removeWidget(item);
     mToDoItems.removeOne(item);
-    mFinishedItems.removeOne(item);
     if (item)
         delete item;
 }

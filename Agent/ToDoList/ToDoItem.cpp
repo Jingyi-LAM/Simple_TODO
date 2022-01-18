@@ -1,24 +1,30 @@
 #include "ToDoItem.h"
 #include "ui_ToDoItem.h"
+#include <QDateTime>
 
-ToDoItem::ToDoItem(QWidget *parent, QString title, QString type, QString date)
+ToDoItem::ToDoItem(QWidget *parent, const struct ItemContent &itemContent)
     : QWidget(parent)
     , mUi(new Ui::ToDoItem)
-    , mTitle(title)
-    , mType(type)
-    , mDate(date)
 {
     mUi->setupUi(this);
-    mUi->lblTitle->setText(mTitle);
-    mUi->lblType->setText(mType);
-    mUi->lblDate->setText(mDate);
+
+    // Default UI
+    if (itemContent.currentStatus == "resolve") {
+        mUi->cbIsDone->setCheckState(Qt::Checked);
+        mUi->lblTitle->setText("<s>" + itemContent.title + "</s>");
+    } else {
+        mUi->lblTitle->setText(itemContent.title);
+    }
+    mUi->lblType->setText(itemContent.type);
+    mUi->lblDate->setText(itemContent.expectDate);
+    mItemContent = itemContent;
 
     connect(mUi->cbIsDone, &QCheckBox::toggled, this, [=](bool checked){
         emit SigCheckboxToggle(checked);
         if (checked) {
-            mUi->lblTitle->setText("<s>" + mTitle + "</s>");
+            mUi->lblTitle->setText("<s>" + itemContent.title + "</s>");
         } else {
-            mUi->lblTitle->setText(mTitle);
+            mUi->lblTitle->setText(itemContent.title);
         }
     });
 
@@ -30,17 +36,26 @@ ToDoItem::~ToDoItem()
     delete mUi;
 }
 
-QString ToDoItem::GetTitle(void)
+void ToDoItem::ChangeStatus(ToDoItem::StatusType type)
 {
-    return mTitle;
+    switch (type) {
+    case ToDoItem::Open:
+        mItemContent.currentStatus = "open";
+        break;
+    case ToDoItem::Resolve:
+        mItemContent.currentStatus = "resolve";
+        mItemContent.resolveDate = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
+        break;
+    case ToDoItem::Reopen:
+        mItemContent.currentStatus = "reopen";
+        mItemContent.reopenDate = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
+        break;
+    default:
+        break;
+    }
 }
 
-QString ToDoItem::GetType(void)
+struct ItemContent ToDoItem::GetItemContent(void)
 {
-    return mType;
-}
-
-QString ToDoItem::GetExpectDate(void)
-{
-    return mDate;
+    return mItemContent;
 }

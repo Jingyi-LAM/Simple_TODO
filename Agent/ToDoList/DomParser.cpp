@@ -4,7 +4,6 @@
 #include <QXmlStreamWriter>
 
 DomParser::DomParser()
-    : mItems()
 {
 
 }
@@ -14,7 +13,7 @@ DomParser::~DomParser()
 
 }
 
-bool DomParser::ReadFile(const QString &fileName)
+bool DomParser::ReadFile(const QString &fileName, QList<struct ItemContent> &items)
 {
     QFile file(fileName);
     if (!file.open(QFile::ReadOnly | QFile::Text)) {
@@ -38,7 +37,7 @@ bool DomParser::ReadFile(const QString &fileName)
         return false;
     }
 
-    ParseToDoListElement(root);
+    ParseToDoListElement(root, items);
 
     file.close();
     if (file.error()) {
@@ -46,20 +45,19 @@ bool DomParser::ReadFile(const QString &fileName)
         return false;
     }
     return true;
-    return true;
 }
 
-void DomParser::ParseToDoListElement(const QDomElement &element)
+void DomParser::ParseToDoListElement(const QDomElement &element, QList<struct ItemContent> &items)
 {
     QDomNode child = element.firstChild();
     while (!child.isNull()) {
         if (child.toElement().tagName() == "item")
-            ParseItemElement(child.toElement());
+            ParseItemElement(child.toElement(), items);
         child = child.nextSibling();
     }
 }
 
-void DomParser::ParseItemElement(const QDomElement &element)
+void DomParser::ParseItemElement(const QDomElement &element, QList<struct ItemContent> &items)
 {
     struct ItemContent newItem;
     QDomNode child = element.firstChild();
@@ -71,16 +69,22 @@ void DomParser::ParseItemElement(const QDomElement &element)
             newItem.type = child.toElement().text();
         } else if (child.toElement().tagName() == "expect_date") {
             newItem.expectDate = child.toElement().text();
+        } else if (child.toElement().tagName() == "resolve_date") {
+            newItem.resolveDate = child.toElement().text();
+        } else if (child.toElement().tagName() == "reopen_date") {
+            newItem.reopenDate = child.toElement().text();
+        } else if (child.toElement().tagName() == "current_status") {
+            newItem.currentStatus = child.toElement().text();
         } else {
             break;
         }
         child = child.nextSibling();
     }
 
-    mItems.append(newItem);
+    items.append(newItem);
 }
 
-bool DomParser::WriteFile(const QString &fileName)
+bool DomParser::WriteFile(const QString &fileName, const QList<struct ItemContent> &items)
 {
     QFile file(fileName);
     if (!file.open(QFile::WriteOnly | QFile::Text)) {
@@ -92,11 +96,14 @@ bool DomParser::WriteFile(const QString &fileName)
     xmlWriter.setAutoFormatting(true);
     xmlWriter.writeStartDocument();
     xmlWriter.writeStartElement("todo_list");
-    for (auto i : mItems) {
+    for (auto i : items) {
         xmlWriter.writeStartElement("item");
         xmlWriter.writeTextElement("title", i.title);
         xmlWriter.writeTextElement("type", i.type);
         xmlWriter.writeTextElement("expect_date", i.expectDate);
+        xmlWriter.writeTextElement("resolve_date", i.resolveDate);
+        xmlWriter.writeTextElement("reopen_date", i.reopenDate);
+        xmlWriter.writeTextElement("current_status", i.currentStatus);
         xmlWriter.writeEndElement();
     }
     xmlWriter.writeEndDocument();
@@ -108,22 +115,6 @@ bool DomParser::WriteFile(const QString &fileName)
     }
     return true;
 }
-
-const QList<struct ItemContent> DomParser::GetAllItems(void)
-{
-    return mItems;
-}
-
-void DomParser::InsertNewItem(struct ItemContent item)
-{
-    mItems.append(item);
-}
-
-void DomParser::DeleteAllItems(void)
-{
-    mItems.clear();
-}
-
 
 
 

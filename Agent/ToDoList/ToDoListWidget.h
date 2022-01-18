@@ -17,7 +17,7 @@ public:
     explicit ToDoListWidget(QWidget *parent = nullptr);
     ~ToDoListWidget();
 
-    ToDoItem *AddToDoItem(QString title, QString type, QString date);
+    ToDoItem *AddToDoItem(const struct ItemContent &itemContent);
     void CheckItemDone(ToDoItem *item, bool isDone);
 
     void SlotCheckboxToggle(bool checked);
@@ -25,9 +25,9 @@ public:
 
 private:
     Ui::ToDoListWidget *mUi;
-    QList<ToDoItem *> mToDoItems;
-    QList<ToDoItem *> mFinishedItems;
     DomParser mDomParser;
+    QList<struct ItemContent> mItemContents;
+    QList<ToDoItem *> mToDoItems;
 };
 
 #endif // TODOLISTWIDGET_H
